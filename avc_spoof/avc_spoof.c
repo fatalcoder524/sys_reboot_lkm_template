@@ -122,14 +122,14 @@ static int get_sid(void)
 	// dont load at all if we cant get sids
 	int err = secctx_to_secid("u:r:su:s0", strlen("u:r:su:s0"), &su_sid);
 	if (err) {
-		pr_info("avc_spoof/get_sid: su_sid not found!\n");
+		pr_info("avc_spoof/get_sid: su_sid not found!");
 		return -1;
 	}
 	pr_info("avc_spoof/get_sid: su_sid: %u", su_sid);
 
 	err = secctx_to_secid("u:r:kernel:s0", strlen("u:r:kernel:s0"), &kernel_sid);
 	if (err) {
-		pr_info("avc_spoof/get_sid: kernel_sid not found!\n");
+		pr_info("avc_spoof/get_sid: kernel_sid not found!");
 		return -1;
 	}
 	pr_info("avc_spoof/get_sid: kernel_sid: %u", kernel_sid);
