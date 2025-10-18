@@ -87,27 +87,12 @@ static int slow_avc_audit_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	if (atomic_read(&disable_spoof))
 		return 0;
 
-	/* 
-	 * just pass both arg2 and arg3 to original handler
-	 * this removes all the headache.
-	 * for < 4.17 int slow_avc_audit(u32 ssid, u32 tsid
-	 * for >= 4.17 int slow_avc_audit(struct selinux_state *state, u32 ssid, u32 tsid
-	 * for >= 6.4 int slow_avc_audit(u32 ssid, u32 tsid
-	 * not to mention theres also DKSU_HAS_SELINUX_STATE
-	 * since its hard to make sure this selinux state thing 
-	 * cross crossing with 4.17 ~ 6.4's where slow_avc_audit
-	 * changes abi (tsid in arg2 vs arg3)
-	 * lets just pass both to the handler
-	 */
-
-	u32 tsid = (u32)PT_REGS_PARM2(regs);
-	if (tsid == su_sid)
+	// if tsid is su, we just replace it
+	// unsure if its enough, but this is how it is aye?
+	if (tsid == su_sid) {
+		pr_info("avc_spoof/slow_avc_audit: replacing su_sid: %u with kernel_sid: %u\n", su_sid, kernel_sid);
 		PT_REGS_PARM2(regs) = (u32)kernel_sid;
-
-	tsid = (u32)PT_REGS_PARM3(regs);
-	if (tsid == su_sid)
-		PT_REGS_PARM3(regs) = (u32)kernel_sid;
-
+	}
 
 	pr_info("avc_spoof/slow_avc_audit: replacing su_sid: %u with kernel_sid: %u\n", su_sid, kernel_sid);
 	return 0;
@@ -140,14 +125,14 @@ static int get_sid(void)
 		pr_info("avc_spoof/get_sid: su_sid not found!\n");
 		return -1;
 	}
-	pr_info("avc_spoof/get_sid: su_sid: %u\n", su_sid);
+	pr_info("avc_spoof/get_sid: su_sid: %u", su_sid);
 
 	err = secctx_to_secid("u:r:kernel:s0", strlen("u:r:kernel:s0"), &kernel_sid);
 	if (err) {
 		pr_info("avc_spoof/get_sid: kernel_sid not found!\n");
 		return -1;
 	}
-	pr_info("avc_spoof/get_sid: kernel_sid: %u\n", kernel_sid);
+	pr_info("avc_spoof/get_sid: kernel_sid: %u", kernel_sid);
 	return 0;
 }
 
