@@ -154,8 +154,7 @@ static struct kprobe sys_reboot_kp = {
 
 static int __init avc_spoof_init(void) 
 {
-	char buf[64] = {0};
-	pr_info("avc_spoof/init: with magic: 0x%d\n", (int)DEF_MAGIC);
+	pr_info("avc_spoof/init: with magic: 0x%x\n", (int)DEF_MAGIC);
 
 	unsigned long addr = lookup_name("security_secctx_to_secid");
 	if (!addr) {
