@@ -154,11 +154,26 @@ static struct kprobe sys_reboot_kp = {
 
 static int __init avc_spoof_init(void) 
 {
-	pr_info("avc_spoof/init: with magic: 0x%x\n", (int)DEF_MAGIC);
+	const char *sym = "security_secctx_to_secid";
+	char buf[34] = {0};
+	pr_info("avc_spoof/init: with magic: 0x%d\n", (int)DEF_MAGIC);
 
 	unsigned long addr = lookup_name("security_secctx_to_secid");
 	if (!addr) {
 		pr_info("avc_spoof/init: security_secctx_to_secid address not found!\n");
+		return -EAGAIN;
+	}
+	
+	// https://elixir.bootlin.com/linux/v6.17.1/source/kernel/kallsyms.c#L474
+	// turns out we can confirm the symbol!
+	sprint_symbol(buf, addr);
+	buf[33] = '\0';
+
+	pr_info("avc_spoof/init: symbol to test: %s !\n", buf);
+	// if strstarts symbol
+	// output is like "security_secctx_to_secid+0x0/0xcc"
+	if (!!strncmp(buf, sym, strlen(sym))) {
+		pr_info("avc_spoof/init: wrong symbol!? %s found!\n", buf);
 		return -EAGAIN;
 	}
 
