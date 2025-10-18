@@ -11,6 +11,11 @@ on:
         description: "Patch level (e.g. 2025-10)"
         required: true
         type: string
+      cfi:
+        description: "Enable Clang CFI"
+        required: true
+        type: boolean
+        default: true
 
   workflow_dispatch:
     inputs:
@@ -22,6 +27,11 @@ on:
         description: "Patch level (e.g. 2025-10)"
         required: true
         type: string
+      cfi:
+        description: "Enable Clang CFI"
+        required: true
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -78,6 +88,20 @@ jobs:
           echo "endmenu" >> drivers/Kconfig
           echo 'obj-y += avc_spoof/' >> drivers/Makefile
           
+          sed -i 's/check_defconfig//' build.config.gki
+          
+          if [ ${{ inputs.cfi }} = true ]; then
+            echo "CONFIG_SELINUX_AVC_SPOOF_USE_CFI=y" >> arch/arm64/configs/gki_defconfig
+            echo "CONFIG_CFI_CLANG=y" >> arch/arm64/configs/gki_defconfig
+            echo "CONFIG_CFI_CLANG_SHADOW=y" >> arch/arm64/configs/gki_defconfig
+            echo "# CONFIG_CFI_PERMISSIVE is not set" >> arch/arm64/configs/gki_defconfig
+          else
+            echo "CONFIG_SELINUX_AVC_SPOOF_USE_CFI=n" >> arch/arm64/configs/gki_defconfig
+            echo "CONFIG_CFI_CLANG=n" >> arch/arm64/configs/gki_defconfig
+            echo "CONFIG_CFI_CLANG_SHADOW=n" >> arch/arm64/configs/gki_defconfig
+            echo "# CONFIG_CFI_PERMISSIVE is not set" >> arch/arm64/configs/gki_defconfig
+          fi
+          
           # stop this exports check
           sed -i '/check_exports(mod)/d' scripts/mod/modpost.c
 
@@ -116,9 +140,9 @@ jobs:
           fi
           
           if [ -f ./dist/avc_spoof.ko ]; then
-          	mv ./dist/avc_spoof.ko avc_spoof.ko
+            mv ./dist/avc_spoof.ko avc_spoof.ko
           else
-          	mv out/${{ inputs.version }}/common/drivers/avc_spoof/avc_spoof.ko avc_spoof.ko
+            mv out/${{ inputs.version }}/common/drivers/avc_spoof/avc_spoof.ko avc_spoof.ko
           fi
 
       - name: Upload avc_spoof.ko

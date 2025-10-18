@@ -25,4 +25,5 @@ jobs:
     with:
       version: ${{ matrix.version }}
       os_patch_level: ${{ matrix.os_patch_level }}
+      cfi: true
 
