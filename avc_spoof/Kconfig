@@ -7,14 +7,6 @@ config SELINUX_AVC_SPOOF
 	  a small demo of lkm_template.
 	  all this does is try spoof su sid on audit logs.
 
-config SELINUX_AVC_SPOOF_USE_LOOKUP
-	bool "Use kallsyms lookup for security_secctx_to_secid"
-	default y if !CFI_CLANG
-	help
-	  Use this if the kernel does not EXPORT_SYMBOL(security_secctx_to_secid).
-	  WARNING: using lookup may break strict CFI kernels. Prefer exporting
-	  the symbol in-kernel and building the module to call it directly.
-
 config SELINUX_AVC_SPOOF_USE_CFI
     bool "Enable CFI-compatible build (for CONFIG_CFI_CLANG kernels)"
     default y if CFI_CLANG

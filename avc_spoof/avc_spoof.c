@@ -40,10 +40,9 @@ static u32 su_sid;
 static u32 kernel_sid;
 static atomic_t disable_spoof = ATOMIC_INIT(0);
 
-#ifdef CONFIG_AVC_SPOOF_USE_LOOKUP
 // seems this isnt exported on some kernels
 typedef int (*secctx_to_secid_fn)(const char *secdata, u32 seclen, u32 *secid);
-static secctx_to_secid_fn secctx_to_secid = NULL;
+static secctx_to_secid_fn real_secctx_to_secid = NULL;
 
 // https://github.com/ilammy/ftrace-hook/blob/master/ftrace_hook.c
 static unsigned long lookup_name(const char *name)
@@ -58,15 +57,14 @@ static unsigned long lookup_name(const char *name)
 	unregister_kprobe(&kp);
 	return retval;
 }
-#else
-extern int security_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid);
-/* unify the call site: use secctx_to_secid() in code */
-static inline int secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
-{
-	return security_secctx_to_secid(secdata, seclen, secid);
-}
 
-#endif
+extern int security_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid) __attribute__((no_sanitize("cfi")));
+
+__attribute__((no_sanitize("cfi")))
+static int call_secctx_to_secid(const char *ctx, u32 len, u32 *sid)
+{
+    return real_secctx_to_secid(ctx, len, sid);
+}
 
 static int handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user *arg)
 {
@@ -129,22 +127,20 @@ static struct kprobe slow_avc_audit_kp = {
 
 static int get_sid(void)
 {
-#ifdef CONFIG_AVC_SPOOF_USE_LOOKUP
-	if (!secctx_to_secid) {
+	if (!real_secctx_to_secid) {
 		pr_info("avc_spoof/get_sid: secctx_to_secid pointer NULL\n");
 		return -EINVAL;
 	}
-#endif
 	
 	// dont load at all if we cant get sids
-	int err = secctx_to_secid("u:r:su:s0", strlen("u:r:su:s0"), &su_sid);
+	int err = call_secctx_to_secid("u:r:su:s0", strlen("u:r:su:s0"), &su_sid);
 	if (err) {
 		pr_info("avc_spoof/get_sid: su_sid not found!");
 		return -1;
 	}
 	pr_info("avc_spoof/get_sid: su_sid: %u", su_sid);
 
-	err = secctx_to_secid("u:r:kernel:s0", strlen("u:r:kernel:s0"), &kernel_sid);
+	err = call_secctx_to_secid("u:r:kernel:s0", strlen("u:r:kernel:s0"), &kernel_sid);
 	if (err) {
 		pr_info("avc_spoof/get_sid: kernel_sid not found!");
 		return -1;
@@ -173,7 +169,6 @@ static int __init avc_spoof_init(void)
 {
 	pr_info("avc_spoof/init: with magic: 0x%x\n", (int)DEF_MAGIC);
 
-#ifdef CONFIG_AVC_SPOOF_USE_LOOKUP
 	unsigned long addr = lookup_name("security_secctx_to_secid");
 	if (!addr) {
 		pr_info("avc_spoof/init: security_secctx_to_secid address not found!\n");
@@ -206,10 +201,7 @@ static int __init avc_spoof_init(void)
 	}
 
 	pr_info("avc_spoof/init: sprint_symbol 0x%lx: %s\n", addr, buf);
-	secctx_to_secid = (secctx_to_secid_fn)addr;
-#else
-	pr_info("avc_spoof/init: using direct call to security_secctx_to_secid\n");
-#endif
+	real_secctx_to_secid = (secctx_to_secid_fn)addr;
 
 	int ret = get_sid();
 	if (ret) {
